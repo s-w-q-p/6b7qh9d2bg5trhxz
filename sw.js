@@ -4,7 +4,7 @@
  *
  * アプリのファイルを更新したら CACHE_VERSION を上げる。次に開いたとき新しいファイルに入れ替わる。
  */
-const CACHE_VERSION = 'sales-report-v5';
+const CACHE_VERSION = 'sales-report-v6';
 const FILES = [
   './',
   './index.html',

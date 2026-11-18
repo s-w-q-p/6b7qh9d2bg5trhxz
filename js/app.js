@@ -23,7 +23,9 @@
   const HOURS = []; // ダイヤルの「時」：7〜23
   for (let h = MIN_TIME / 60; h <= MAX_TIME / 60; h += 1) HOURS.push(h);
   const MINUTES = [0, 15, 30, 45]; // ダイヤルの「分」
-  const WHEEL_ITEM = 36; // ダイヤル 1 段の高さ（px）。style.css の .wheel-item と合わせる
+  const WHEEL_ITEM = 32; // ダイヤル 1 段の高さ（px）。style.css の .wheel-item と合わせる
+  const WHEEL_ANGLE = 20; // 1 段ごとの傾き（度）。円筒に数字が並んでいるように見せる
+  const WHEEL_RADIUS = WHEEL_ITEM / (WHEEL_ANGLE * Math.PI / 180); // 円筒の半径（中央付近の間隔が 1 段分になる）
   const BREAK_OPTIONS = [
     { minutes: 15, label: '15分' },
     { minutes: 30, label: '30分' },
@@ -150,7 +152,9 @@
     let timer = null;
 
     const items = values.map(function (value, i) {
-      const item = element('div', 'wheel-item', format(value));
+      // 止まる位置（スナップ）がずれないよう、傾けるのは中の文字だけにする
+      const item = element('div', 'wheel-item');
+      item.append(element('span', 'wheel-text', format(value)));
       item.addEventListener('click', function () {
         onPick(values[i]);
       });
@@ -177,8 +181,30 @@
       }, 140);
     }
 
+    // 中央から離れた数字ほど傾けて間隔を詰め、薄くする（iPhone の時刻ピッカー風）
+    let frame = 0;
+    function paint() {
+      frame = 0;
+      const top = wheel.scrollTop;
+      items.forEach(function (item, k) {
+        const offset = (k * WHEEL_ITEM - top) / WHEEL_ITEM;
+        const angle = offset * WHEEL_ANGLE;
+        const text = item.firstChild;
+        if (Math.abs(angle) >= 90) {
+          text.style.visibility = 'hidden';
+          return;
+        }
+        const shift = WHEEL_RADIUS * Math.sin(angle * Math.PI / 180) - offset * WHEEL_ITEM;
+        const fade = Math.max(0.12, 1 - Math.abs(offset) * 0.3) * (item.classList.contains('is-disabled') ? 0.35 : 1);
+        text.style.visibility = '';
+        text.style.transform = 'perspective(500px) translateY(' + shift.toFixed(1) + 'px) rotateX(' + (-angle).toFixed(1) + 'deg)';
+        text.style.opacity = fade.toFixed(2);
+      });
+    }
+
     wheel.addEventListener('scroll', function () {
       highlight(nearest());
+      if (!frame) frame = global.requestAnimationFrame(paint);
       settleLater();
     }, { passive: true });
     wheel.addEventListener('touchstart', function () {
@@ -204,9 +230,10 @@
       highlight(i);
       // 画面に出ていない間は位置を合わせられないので、表示したときにもう一度呼ぶ
       if (Math.abs(wheel.scrollTop - i * WHEEL_ITEM) > 1) wheel.scrollTop = i * WHEEL_ITEM;
+      paint();
     }
 
-    return { element: wheel, items: items, show: show };
+    return { element: wheel, items: items, show: show, paint: paint };
   }
 
   /** 開始・終了の 1 欄（時と分のダイヤル）。未入力の間は標準の時刻を薄く表示し、触れると確定する。 */
@@ -237,7 +264,7 @@
     minuteWheel.element.id = 'staff-' + key + '-minute-' + index;
 
     const pair = element('div', 'wheel-pair');
-    pair.append(hourWheel.element, element('span', 'wheel-colon', ':'), minuteWheel.element);
+    pair.append(hourWheel.element, minuteWheel.element);
     box.append(head, pair);
 
     function sync() {
@@ -251,6 +278,7 @@
       minuteWheel.items.forEach(function (item, k) {
         item.classList.toggle('is-disabled', hour * 60 + MINUTES[k] > MAX_TIME);
       });
+      minuteWheel.paint();
     }
 
     return { element: box, sync: sync };

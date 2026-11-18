@@ -11,6 +11,7 @@
   --danger: #c4302b;
   --bar: rgba(249, 249, 251, 0.92);
   --tabbar-height: 58px;
+  --picker-band: rgba(118, 118, 128, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,6 +25,7 @@
     --on-accent: #00213f;
     --danger: #ff6b62;
     --bar: rgba(22, 22, 24, 0.92);
+    --picker-band: rgba(118, 118, 128, 0.24);
   }
 }
 
@@ -322,7 +324,7 @@ body.is-typing .tabbar {
   outline-offset: 2px;
 }
 
-/* 勤務時間：開始・終了を横に並べ、それぞれ時・分のダイヤルで選ぶ */
+/* 勤務時間：開始・終了を横に並べ、それぞれ iPhone の時刻ピッカー風の時・分ダイヤルで選ぶ */
 .time-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -332,17 +334,13 @@ body.is-typing .tabbar {
 
 .time-box {
   min-width: 0;
-  padding: 6px 6px 4px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
 }
 
 .time-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 0 4px;
+  padding: 0 6px 2px;
 }
 
 .time-label {
@@ -360,41 +358,40 @@ body.is-typing .tabbar {
   display: inline;
 }
 
+/* 高さ 160px・1 段 32px（app.js の WHEEL_ITEM と合わせる） */
 .wheel-pair {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
 }
 
-/* 選択中の段に敷く帯（高さは .wheel-item と同じ 36px） */
+/* 選択中の段に敷く丸い帯 */
 .wheel-pair::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  top: 36px;
-  height: 36px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  top: 64px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--picker-band);
   pointer-events: none;
 }
 
-/* 3 段分の窓。上下に 1 段分の余白を取り、端の数字も中央に止まれるようにする */
+/* 上下に余白を取り、端の数字も中央に止まれるようにする。数字の傾きと薄さは app.js で付ける */
 .wheel {
   position: relative;
-  width: 2.8em;
-  height: 108px;
-  padding: 36px 0;
+  width: 2.6em;
+  height: 160px;
+  padding: 64px 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-snap-type: y mandatory;
   scrollbar-width: none;
   touch-action: pan-y;
-  border-radius: 8px;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent);
+  outline-offset: -2px;
 }
 
 .wheel::-webkit-scrollbar {
@@ -402,44 +399,28 @@ body.is-typing .tabbar {
 }
 
 .wheel-item {
-  height: 36px;
-  line-height: 36px;
+  height: 32px;
+  line-height: 32px;
   text-align: center;
   scroll-snap-align: center;
-  font-size: 1.125rem;
+  font-size: 1.375rem;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
-  color: var(--text-sub);
+  color: var(--text);
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.wheel-item.is-selected {
-  color: var(--text);
-  font-size: 1.25rem;
-  font-weight: 700;
+.wheel-text {
+  display: block;
+  backface-visibility: hidden;
 }
 
 /* 未入力の間は、標準の時刻を薄く見せるだけ */
-.time-box.is-empty .wheel-item.is-selected {
-  color: var(--text-sub);
-  font-weight: 500;
-}
-
 .time-box.is-empty .wheel-pair {
-  opacity: 0.6;
-}
-
-.wheel-item.is-disabled {
-  opacity: 0.3;
-}
-
-.wheel-colon {
-  position: relative;
-  padding: 0 2px;
-  font-weight: 700;
-  color: var(--text-sub);
+  opacity: 0.5;
 }
 
 /* コピー｜貼り付け｜（右端）クリア */
