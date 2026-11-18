@@ -484,7 +484,8 @@ body {
 }
 
 .field .unit {
-  width: 1.2em;
+  min-width: 1.2em;
+  white-space: nowrap;
   color: var(--text-sub);
 }
 
