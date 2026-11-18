@@ -18,7 +18,7 @@
 
   const TIME_LABELS = { start: '開始', end: '終了' };
   const DEFAULT_TIME = 17 * 60; // 未入力の欄に最初に入れる時刻（17:00）
-  const MIN_TIME = 8 * 60; // 選べる時刻は 8:00〜23:00
+  const MIN_TIME = 7 * 60; // 選べる時刻は 7:00〜23:00
   const MAX_TIME = 23 * 60;
   const TIME_STEP = 15;
   const TIME_STEPS = [
@@ -172,7 +172,7 @@
       const line = element('div', 'time-line');
       line.dataset.timeKey = key;
 
-      // 選べる時刻を 8:00〜23:00・15 分刻みに限るため、時と分を別々の選択欄にする
+      // 選べる時刻を 7:00〜23:00・15 分刻みに限るため、時と分を別々の選択欄にする
       const hour = doc.createElement('select');
       hour.id = 'staff-' + key + '-hour-' + index;
       hour.setAttribute('aria-label', name + ' の' + label + '（時）');
@@ -289,7 +289,7 @@
     return key === 'end' && data.start ? data.start : formatTime(DEFAULT_TIME);
   }
 
-  /** 選べる範囲（8:00〜23:00）に収める。 */
+  /** 選べる範囲（7:00〜23:00）に収める。 */
   function clampTime(minutes) {
     return Math.min(MAX_TIME, Math.max(MIN_TIME, minutes));
   }
@@ -341,10 +341,11 @@
       input.placeholder = '0';
       const wrap = element('span', 'field');
       wrap.append(input, element('span', 'unit', item.unit));
+      label.append(element('small', 'how', item.how));
       row.append(label, wrap);
     } else {
       const term = element('dt', '', item.label);
-      term.append(element('span', 'chip', '自動'));
+      term.append(element('span', 'chip', '自動'), element('small', 'how', item.how));
       const value = element('dd');
       value.id = 'output-' + item.id;
       row.append(term, value);

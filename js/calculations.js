@@ -27,30 +27,30 @@
       id: 'monthly',
       title: '月間売上',
       items: [
-        { id: 'monthlyTarget', label: '目標（税別）', unit: '円', kind: 'input' },
-        { id: 'monthlyCumulativeTarget', label: '累積目標（税別）', unit: '円', kind: 'input' },
-        { id: 'monthlyCumulativeActual', label: '累積実績（税別）', unit: '円', kind: 'input' },
-        { id: 'monthlyDifference', label: '差額（実績 − 目標）', unit: '円', kind: 'output' }
+        { id: 'monthlyTarget', label: '目標（税別）', unit: '円', kind: 'input', how: '入力（その月の目標）' },
+        { id: 'monthlyCumulativeTarget', label: '累積目標（税別）', unit: '円', kind: 'input', how: '入力（今日までの目標の累計）' },
+        { id: 'monthlyCumulativeActual', label: '累積実績（税別）', unit: '円', kind: 'input', how: '入力（今日までの実績の累計）' },
+        { id: 'monthlyDifference', label: '差額（実績 − 目標）', unit: '円', kind: 'output', how: '累積実績 − 累積目標' }
       ]
     },
     {
       id: 'lunch',
       title: 'ランチ　当日売上',
       items: [
-        { id: 'lunchTarget', label: '目標（税別）', unit: '円', kind: 'input' },
-        { id: 'lunchSales', label: '実績（税別）', unit: '円', kind: 'input' },
-        { id: 'lunchGuests', label: '来客数', unit: '人', kind: 'input' },
-        { id: 'lunchAverage', label: '客単価', unit: '円', kind: 'output' }
+        { id: 'lunchTarget', label: '目標（税別）', unit: '円', kind: 'input', how: '入力' },
+        { id: 'lunchSales', label: '実績（税別）', unit: '円', kind: 'input', how: '入力（税込 ÷ 1.1 した額）' },
+        { id: 'lunchGuests', label: '来客数', unit: '人', kind: 'input', how: '入力' },
+        { id: 'lunchAverage', label: '客単価', unit: '円', kind: 'output', how: 'ランチ実績 ÷ ランチ来客数（円未満切り捨て）' }
       ]
     },
     {
       id: 'total',
       title: '合計　当日売上',
       items: [
-        { id: 'totalTarget', label: '目標（税別）', unit: '円', kind: 'input' },
-        { id: 'totalSales', label: '実績（税別）', unit: '円', kind: 'input' },
-        { id: 'totalGuests', label: '来客数', unit: '人', kind: 'input' },
-        { id: 'totalAverage', label: '客単価', unit: '円', kind: 'output' }
+        { id: 'totalTarget', label: '目標（税別）', unit: '円', kind: 'input', how: '入力' },
+        { id: 'totalSales', label: '実績（税別）', unit: '円', kind: 'input', how: '入力（税込 ÷ 1.1 した額）' },
+        { id: 'totalGuests', label: '来客数', unit: '人', kind: 'input', how: '入力' },
+        { id: 'totalAverage', label: '客単価', unit: '円', kind: 'output', how: '合計実績 ÷ 合計来客数（円未満切り捨て）' }
       ]
     },
     {
@@ -58,10 +58,10 @@
       title: 'ディナー　当日売上',
       note: '合計 − ランチ',
       items: [
-        { id: 'dinnerTarget', label: '目標（税別）', unit: '円', kind: 'input' },
-        { id: 'dinnerSales', label: '実績（税別）', unit: '円', kind: 'output' },
-        { id: 'dinnerGuests', label: '来客数', unit: '人', kind: 'output' },
-        { id: 'dinnerAverage', label: '客単価', unit: '円', kind: 'output' }
+        { id: 'dinnerTarget', label: '目標（税別）', unit: '円', kind: 'input', how: '入力' },
+        { id: 'dinnerSales', label: '実績（税別）', unit: '円', kind: 'output', how: '合計実績 − ランチ実績' },
+        { id: 'dinnerGuests', label: '来客数', unit: '人', kind: 'output', how: '合計来客数 − ランチ来客数' },
+        { id: 'dinnerAverage', label: '客単価', unit: '円', kind: 'output', how: 'ディナー実績 ÷ ディナー来客数（円未満切り捨て）' }
       ]
     }
   ];

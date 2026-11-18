@@ -50,17 +50,16 @@
           <span class="badge">合計の当日売上 ÷ 時間</span>
         </div>
         <dl class="rows">
-          <div class="row"><dt>社員<span class="chip">自動</span></dt><dd id="output-laborEmployee"></dd></div>
-          <div class="row"><dt>アルバイト<span class="chip">自動</span></dt><dd id="output-laborPartTime"></dd></div>
-          <div class="row"><dt>合計<span class="chip">自動</span></dt><dd id="output-laborTotal"></dd></div>
+          <div class="row"><dt>社員<span class="chip">自動</span><small class="how">社員の実労働時間の合計</small></dt><dd id="output-laborEmployee"></dd></div>
+          <div class="row"><dt>アルバイト<span class="chip">自動</span><small class="how">アルバイトの実労働時間の合計</small></dt><dd id="output-laborPartTime"></dd></div>
+          <div class="row"><dt>合計<span class="chip">自動</span><small class="how">社員 ＋ アルバイト</small></dt><dd id="output-laborTotal"></dd></div>
           <div class="row">
-            <label for="input-plannedHours">予定の実労働時間</label>
+            <label for="input-plannedHours">予定の実労働時間<small class="how">入力（別紙の値・小数可 例：11.5）</small></label>
             <span class="field"><input id="input-plannedHours" type="text" inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit">時間</span></span>
           </div>
-          <div class="row"><dt>人時生産高目標<span class="chip">自動</span></dt><dd id="output-productivityTarget"></dd></div>
-          <div class="row"><dt>人時生産高実績<span class="chip">自動</span></dt><dd id="output-productivityActual"></dd></div>
+          <div class="row"><dt>人時生産高目標<span class="chip">自動</span><small class="how">合計の当日目標 ÷ 予定の実労働時間（円未満切り捨て）</small></dt><dd id="output-productivityTarget"></dd></div>
+          <div class="row"><dt>人時生産高実績<span class="chip">自動</span><small class="how">合計の当日実績 ÷ 合計時間（円未満切り捨て）</small></dt><dd id="output-productivityActual"></dd></div>
         </dl>
-        <p class="note">目標 ＝ 合計の当日目標 ÷ 予定の実労働時間、実績 ＝ 合計の当日実績 ÷ 合計時間（どちらも円未満は切り捨て）。予定の実労働時間は小数（例：11.5）で入力できます。</p>
       </section>
 
       <div id="sales-groups"></div>
@@ -117,7 +116,7 @@
         <ul class="usage">
           <li>「集計」で出勤簿と売上を入力すると、「自動」の項目がすぐに計算されます。</li>
           <li>出勤簿は A〜E の 5 人分が標準です。人数が多い日は「項目を追加」で増やせます（日報の行数に合わせて最大 10 人）。</li>
-          <li>勤務時間は「時」と「分」の欄を押して選びます。選べるのは 8:00〜23:00 の 15 分刻みで、未入力の欄は 17:00 から始まります。</li>
+          <li>勤務時間は「時」と「分」の欄を押して選びます。選べるのは 7:00〜23:00 の 15 分刻みで、未入力の欄は 17:00 から始まります。</li>
           <li>「−15分」「+15分」で 15 分刻みに微調整できます。</li>
           <li>休憩は 15分・30分・45分・1時間から選びます。もう一度押すと休憩なしに戻ります。</li>
           <li>区分の初期値は A・B が社員、C 以降がアルバイトです。行ごとに切り替えられます。</li>
