@@ -58,7 +58,7 @@
       title: 'ディナー　当日売上',
       note: '合計 − ランチ',
       items: [
-        { id: 'dinnerTarget', label: '目標（税別）', unit: '円', kind: 'input', how: '入力' },
+        { id: 'dinnerTarget', label: '目標（税別）', unit: '円', kind: 'output', how: '合計目標 − ランチ目標' },
         { id: 'dinnerSales', label: '実績（税別）', unit: '円', kind: 'output', how: '合計実績 − ランチ実績' },
         { id: 'dinnerGuests', label: '来客数', unit: '人', kind: 'output', how: '合計来客数 − ランチ来客数' },
         { id: 'dinnerAverage', label: '客単価', unit: '円', kind: 'output', how: 'ディナー実績 ÷ ディナー来客数（円未満切り捨て）' }
@@ -143,6 +143,7 @@
     sales.monthlyDifference = difference(sales.monthlyCumulativeActual, sales.monthlyCumulativeTarget);
     sales.lunchAverage = average(sales.lunchSales, sales.lunchGuests);
     sales.totalAverage = average(sales.totalSales, sales.totalGuests);
+    sales.dinnerTarget = difference(sales.totalTarget, sales.lunchTarget);
     sales.dinnerSales = difference(sales.totalSales, sales.lunchSales);
     sales.dinnerGuests = difference(sales.totalGuests, sales.lunchGuests);
     sales.dinnerAverage = average(sales.dinnerSales, sales.dinnerGuests);
