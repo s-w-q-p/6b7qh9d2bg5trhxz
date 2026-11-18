@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f9f9fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
+  <!-- iPhone のホーム画面に追加したとき、アプリとして全画面で開く -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="日報計算">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" href="assets/icons/icon-192.png" type="image/png">
+  <title>売上日報計算</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <h1 id="screen-title">集計</h1>
+      <span id="today" class="today"></span>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <noscript>
+      <p class="notice">このアプリの利用には JavaScript を有効にする必要があります。</p>
+    </noscript>
+
+    <!-- 集計画面 -->
+    <section id="view-summary" class="view" aria-labelledby="screen-title">
+      <section class="card" aria-labelledby="staff-title">
+        <div class="card-head">
+          <h2 id="staff-title">出勤簿</h2>
+          <span class="badge">実労働 ＝ 勤務時間 − 休憩</span>
+        </div>
+        <div id="staff-list" class="rows"></div>
+        <div class="card-actions">
+          <button id="add-staff-button" type="button" class="button button-small">＋ 項目を追加</button>
+          <button id="remove-staff-button" type="button" class="button button-small" hidden>最後の項目を削除</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="labor-title">
+        <div class="card-head">
+          <h2 id="labor-title">人時生産高</h2>
+          <span class="badge">合計の当日売上 ÷ 時間</span>
+        </div>
+        <dl class="rows">
+          <div class="row"><dt>社員<span class="chip">自動</span></dt><dd id="output-laborEmployee"></dd></div>
+          <div class="row"><dt>アルバイト<span class="chip">自動</span></dt><dd id="output-laborPartTime"></dd></div>
+          <div class="row"><dt>合計<span class="chip">自動</span></dt><dd id="output-laborTotal"></dd></div>
+          <div class="row">
+            <label for="input-plannedHours">予定の実労働時間</label>
+            <span class="field"><input id="input-plannedHours" type="text" inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit">時間</span></span>
+          </div>
+          <div class="row"><dt>人時生産高目標<span class="chip">自動</span></dt><dd id="output-productivityTarget"></dd></div>
+          <div class="row"><dt>人時生産高実績<span class="chip">自動</span></dt><dd id="output-productivityActual"></dd></div>
+        </dl>
+        <p class="note">目標 ＝ 合計の当日目標 ÷ 予定の実労働時間、実績 ＝ 合計の当日実績 ÷ 合計時間（どちらも円未満は切り捨て）。予定の実労働時間は小数（例：11.5）で入力できます。</p>
+      </section>
+
+      <div id="sales-groups"></div>
+
+      <button id="reset-button" type="button" class="button button-danger">入力を初期化</button>
+      <p id="summary-status" class="status" role="status"></p>
+    </section>
+
+    <!-- 日報プレビュー画面 -->
+    <section id="view-report" class="view" aria-labelledby="screen-title" hidden>
+      <div class="report-frame">
+        <canvas id="report-canvas" width="1754" height="1240" role="img" aria-label="日報のプレビュー"></canvas>
+      </div>
+      <p class="note">「集計」で入力した内容と計算結果が反映されます。日付は端末の時計から自動で入ります。</p>
+
+      <button id="export-button" type="button" class="button button-primary">PNG として保存</button>
+      <p id="export-status" class="status" role="status"></p>
+
+      <section class="card" aria-labelledby="export-spec-title">
+        <div class="card-head"><h2 id="export-spec-title">出力仕様</h2></div>
+        <dl class="rows">
+          <div class="row"><dt>サイズ</dt><dd id="export-size"></dd></div>
+          <div class="row"><dt>向き</dt><dd>横向き</dd></div>
+          <div class="row"><dt>背景</dt><dd>白（外観設定の影響なし）</dd></div>
+        </dl>
+      </section>
+    </section>
+
+    <!-- 設定・情報画面 -->
+    <section id="view-info" class="view" aria-labelledby="screen-title" hidden>
+      <section class="card" aria-labelledby="info-app-title">
+        <div class="card-head"><h2 id="info-app-title">アプリ</h2></div>
+        <dl class="rows">
+          <div class="row"><dt>名称</dt><dd>売上日報計算アプリ</dd></div>
+          <div class="row"><dt>バージョン</dt><dd id="info-version"></dd></div>
+          <div class="row"><dt>開発段階</dt><dd>iPhone 対応</dd></div>
+        </dl>
+      </section>
+
+      <section class="card" aria-labelledby="info-status-title">
+        <div class="card-head"><h2 id="info-status-title">動作状態</h2></div>
+        <dl class="rows">
+          <div class="row"><dt>実行環境</dt><dd id="info-environment"></dd></div>
+          <div class="row"><dt>外観</dt><dd id="info-theme"></dd></div>
+          <div class="row"><dt>データ保存</dt><dd>なし（実行中のメモリのみ）</dd></div>
+          <div class="row"><dt>ネットワーク</dt><dd>不要</dd></div>
+          <div class="row"><dt>オフライン動作</dt><dd id="info-offline"></dd></div>
+          <div class="row"><dt>実行エラー</dt><dd id="info-errors"></dd></div>
+        </dl>
+      </section>
+
+      <section class="card" aria-labelledby="info-usage-title">
+        <div class="card-head"><h2 id="info-usage-title">使い方</h2></div>
+        <ul class="usage">
+          <li>「集計」で出勤簿と売上を入力すると、「自動」の項目がすぐに計算されます。</li>
+          <li>出勤簿は A〜E の 5 人分が標準です。人数が多い日は「項目を追加」で増やせます（日報の行数に合わせて最大 10 人）。</li>
+          <li>勤務時間は「時」と「分」の欄を押して選びます。選べるのは 8:00〜23:00 の 15 分刻みで、未入力の欄は 17:00 から始まります。</li>
+          <li>「−15分」「+15分」で 15 分刻みに微調整できます。</li>
+          <li>休憩は 15分・30分・45分・1時間から選びます。もう一度押すと休憩なしに戻ります。</li>
+          <li>区分の初期値は A・B が社員、C 以降がアルバイトです。行ごとに切り替えられます。</li>
+          <li>客単価と人時生産高は円未満を切り捨てます。</li>
+          <li>ディナーの実績と来客数は「合計 − ランチ」で計算されます。</li>
+          <li>「入力を初期化」で、入力した内容をすべて消去できます。</li>
+          <li>「日報」で日報を確認し、PNG 画像として保存できます。iPhone では共有メニューが開くので「画像を保存」で写真に保存します。</li>
+          <li>iPhone では Safari の共有ボタンから「ホーム画面に追加」すると、アプリとして通信なしで使えます。</li>
+          <li>入力内容は保存されません。画面を閉じるか再読み込みすると消えます。</li>
+          <li>端末に残るのは、保存した PNG ファイルだけです。</li>
+        </ul>
+      </section>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="画面切り替え">
+    <button type="button" class="tab" data-view="summary" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 7.5h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/></svg>
+      <span>集計</span>
+    </button>
+    <button type="button" class="tab" data-view="report">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9.5h18M13 9.5V19M6.5 13h3.5M6.5 16h3.5"/></svg>
+      <span>日報</span>
+    </button>
+    <button type="button" class="tab" data-view="info">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5h.01"/></svg>
+      <span>情報</span>
+    </button>
+  </nav>
+
+  <dialog id="reset-dialog" aria-labelledby="reset-dialog-title">
+    <form method="dialog">
+      <h2 id="reset-dialog-title">入力を初期化しますか？</h2>
+      <p>出勤簿と売上の入力がすべて消去されます。</p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="button">キャンセル</button>
+        <button type="submit" value="confirm" class="button button-danger">初期化する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- file:// でも動くよう、ES Modules ではなく通常のスクリプトとして順に読み込む -->
+  <script src="js/calculations.js"></script>
+  <script src="js/report-layout.js"></script>
+  <script src="js/report-template.js"></script>
+  <script src="js/report-export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
