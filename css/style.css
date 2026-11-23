@@ -454,6 +454,62 @@ dialog.staff-sheet[open] {
   font-variant-numeric: tabular-nums;
 }
 
+/* よく使う時間：見出しの右に「編集」 */
+.pattern-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.pattern-head .text-button {
+  min-height: 36px;
+  padding: 0 2px 0 12px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pattern-head .text-button[hidden] {
+  display: none;
+}
+
+/* 「＋ 登録」は点線で、時間のボタンと見分ける */
+.pattern-chips .add-pattern {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: none;
+  color: var(--accent);
+}
+
+.pattern-chips .add-pattern:disabled {
+  border-color: var(--border);
+  color: var(--text-sub);
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 削除する状態 */
+.pattern-chips .is-removing {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.pattern-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+.pattern-hint[hidden] {
+  display: none;
+}
+
 .sheet-result {
   display: flex;
   align-items: baseline;

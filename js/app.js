@@ -26,14 +26,34 @@
   const WHEEL_ITEM = 32; // ダイヤル 1 段の高さ（px）。style.css の .wheel-item と合わせる
   const WHEEL_ANGLE = 20; // 1 段ごとの傾き（度）。円筒に数字が並んでいるように見せる
   const WHEEL_RADIUS = WHEEL_ITEM / (WHEEL_ANGLE * Math.PI / 180); // 円筒の半径（中央付近の間隔が 1 段分になる）
-  // よく使う勤務パターン（開始・終了）。お店の実際の時間に合わせて書き換える
-  const SHIFT_PATTERNS = [
-    ['17:00', '22:00'],
-    ['17:00', '23:00'],
-    ['18:00', '22:00'],
-    ['10:00', '15:00'],
-    ['11:00', '14:00']
-  ];
+  // よく使う勤務パターン（開始・終了）。利用者が自分で登録・削除する。
+  // 日々の入力値とは別に、この端末の中（localStorage）にだけ保存する。
+  const PATTERN_STORAGE_KEY = 'sales-report-shift-patterns';
+  const PATTERN_LIMIT = 12;
+  const TIME_PATTERN = /^([01]\d|2[0-3]):(00|15|30|45)$/;
+
+  function loadPatterns() {
+    try {
+      const list = JSON.parse(global.localStorage.getItem(PATTERN_STORAGE_KEY) || '[]');
+      if (!Array.isArray(list)) return [];
+      return list.filter(function (p) {
+        return Array.isArray(p) && TIME_PATTERN.test(p[0]) && TIME_PATTERN.test(p[1]) && p[0] < p[1];
+      }).slice(0, PATTERN_LIMIT);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function savePatterns() {
+    try {
+      global.localStorage.setItem(PATTERN_STORAGE_KEY, JSON.stringify(shiftPatterns));
+    } catch (error) {
+      // 保存できない環境（プライベートブラウズなど）では、開いている間だけ使える
+    }
+  }
+
+  let shiftPatterns = loadPatterns();
+  let patternEditing = false;
   const BREAK_OPTIONS = [
     { minutes: 15, label: '15分' },
     { minutes: 30, label: '30分' },
@@ -62,7 +82,7 @@
     return { sales: {}, plannedHours: null, staff: staff };
   }
 
-  // 入力値は実行中のメモリだけで保持する。localStorage などには保存しない。
+  // 入力値は実行中のメモリだけで保持する。localStorage などには保存しない（よく使う時間の登録だけは別）。
   let state = createInitialState();
   let currentView = 'summary';
   let todayText = '';
@@ -417,22 +437,80 @@
     }
 
     // よく使う勤務パターン（開始・終了をまとめて入れる。休憩はそのまま）
-    body.append(element('div', 'sheet-label', 'よく使う時間'));
-    const patterns = element('div', 'pattern-chips');
-    const patternButtons = SHIFT_PATTERNS.map(function (pattern) {
-      const button = element('button', 'chip-button', pattern[0] + '〜' + pattern[1]);
-      button.type = 'button';
-      button.dataset.pattern = pattern.join('-');
-      button.addEventListener('click', function () {
-        data.start = pattern[0];
-        data.end = pattern[1];
-        refresh();
-        afterChange();
-      });
-      patterns.append(button);
-      return button;
+    // 自分で登録：ダイヤルで入れた開始〜終了を「＋ 登録」で追加。「編集」で × を押すと削除
+    patternEditing = false;
+    const patternHead = element('div', 'sheet-label pattern-head');
+    const patternEdit = element('button', 'text-button');
+    patternEdit.type = 'button';
+    patternEdit.id = 'pattern-edit';
+    patternEdit.addEventListener('click', function () {
+      patternEditing = !patternEditing;
+      refresh();
     });
+    patternHead.append(element('span', '', 'よく使う時間'), patternEdit);
+    body.append(patternHead);
+    const patterns = element('div', 'pattern-chips');
     body.append(patterns);
+    const patternHint = element('p', 'pattern-hint');
+    body.append(patternHint);
+
+    function renderPatterns() {
+      patterns.textContent = '';
+      shiftPatterns.forEach(function (pattern, at) {
+        const label = pattern[0] + '〜' + pattern[1];
+        const button = element('button', 'chip-button' + (patternEditing ? ' is-removing' : ''), patternEditing ? '× ' + label : label);
+        button.type = 'button';
+        button.dataset.pattern = pattern.join('-');
+        if (patternEditing) {
+          button.setAttribute('aria-label', label + ' を削除');
+        } else {
+          button.setAttribute('aria-pressed', String(button.dataset.pattern === data.start + '-' + data.end));
+        }
+        button.addEventListener('click', function () {
+          if (patternEditing) {
+            shiftPatterns.splice(at, 1);
+            savePatterns();
+            if (!shiftPatterns.length) patternEditing = false;
+            refresh();
+            return;
+          }
+          data.start = pattern[0];
+          data.end = pattern[1];
+          refresh();
+          afterChange();
+        });
+        patterns.append(button);
+      });
+      const canAdd = Boolean(data.start && data.end && data.start < data.end);
+      const exists = shiftPatterns.some(function (p) {
+        return p[0] === data.start && p[1] === data.end;
+      });
+      if (!patternEditing) {
+        const add = element('button', 'chip-button add-pattern', '＋ ' + (canAdd ? data.start + '〜' + data.end + ' を登録' : '今の時間を登録'));
+        add.type = 'button';
+        add.id = 'pattern-add';
+        add.disabled = !canAdd || exists || shiftPatterns.length >= PATTERN_LIMIT;
+        add.addEventListener('click', function () {
+          shiftPatterns.push([data.start, data.end]);
+          shiftPatterns.sort(function (a, b) {
+            return a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : (a[0] < b[0] ? -1 : 1);
+          });
+          savePatterns();
+          refresh();
+        });
+        patterns.append(add);
+      }
+      patternEdit.hidden = !shiftPatterns.length;
+      patternEdit.textContent = patternEditing ? '終わる' : '編集';
+      patternHint.textContent = patternEditing
+        ? '消したい時間をタップしてください。'
+        : !shiftPatterns.length
+          ? '下のダイヤルで開始と終了を選んで「＋ 登録」を押すと、ここに並びます。'
+          : shiftPatterns.length >= PATTERN_LIMIT
+            ? '登録できるのは ' + PATTERN_LIMIT + ' 個までです。'
+            : '';
+      patternHint.hidden = !patternHint.textContent;
+    }
 
     // 開始・終了のダイヤル
     const times = element('div', 'time-grid');
@@ -502,9 +580,7 @@
       breakButtons.forEach(function (button) {
         button.setAttribute('aria-pressed', String(Number(button.dataset.break) === data.breakMinutes));
       });
-      patternButtons.forEach(function (button) {
-        button.setAttribute('aria-pressed', String(button.dataset.pattern === data.start + '-' + data.end));
-      });
+      renderPatterns();
       if (same) {
         const prev = state.staff[index - 1];
         const hasPrev = Boolean(prev.start || prev.end || prev.breakMinutes !== null);
@@ -885,8 +961,9 @@
     byId('add-staff-button').addEventListener('click', addStaffRow);
     byId('remove-staff-button').addEventListener('click', removeStaffRow);
     byId('reset-button').addEventListener('click', requestReset);
-    byId('reset-dialog').addEventListener('close', function (event) {
-      if (event.target.returnValue === 'confirm') resetInputs();
+    // 「初期化する」を押した時点で消す（close イベントは後から非同期に届くため使わない）
+    byId('reset-dialog').querySelector('form').addEventListener('submit', function (event) {
+      if (event.submitter && event.submitter.value === 'confirm') resetInputs();
     });
     byId('export-button').addEventListener('click', handleExport);
 
