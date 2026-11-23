@@ -757,14 +757,24 @@
     const isTyping = function (node) {
       return Boolean(node && node.matches && node.matches('input[type="text"]'));
     };
-    doc.addEventListener('focusin', function (event) {
-      if (isTyping(event.target)) doc.body.classList.add('is-typing');
-    });
+    // iPhone はキーボードを閉じても入力欄に選択が残ることがあるので、
+    // 「入力欄を選んでいる」かつ「画面の見える範囲がキーボード分だけ狭い」ときだけ隠す
+    const viewport = global.visualViewport;
+    const keyboardShown = function () {
+      return Boolean(viewport) && global.innerHeight - viewport.height > 120;
+    };
+    const updateTyping = function () {
+      doc.body.classList.toggle('is-typing', isTyping(doc.activeElement) && keyboardShown());
+    };
+    doc.addEventListener('focusin', updateTyping);
     doc.addEventListener('focusout', function () {
       // 次の入力欄へ移るときに一瞬だけ表示されないよう、移動先が決まってから判定する
-      setTimeout(function () {
-        doc.body.classList.toggle('is-typing', isTyping(doc.activeElement));
-      }, 0);
+      setTimeout(updateTyping, 0);
+    });
+    if (viewport) viewport.addEventListener('resize', updateTyping);
+    // 入力欄の外をタップしたら入力を終える（キーボードを閉じる）
+    doc.addEventListener('pointerdown', function (event) {
+      if (isTyping(doc.activeElement) && !event.target.closest('input, label')) doc.activeElement.blur();
     });
 
     byId('add-staff-button').addEventListener('click', addStaffRow);
