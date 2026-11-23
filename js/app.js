@@ -32,15 +32,31 @@
   const PATTERN_LIMIT = 12;
   const TIME_PATTERN = /^([01]\d|2[0-3]):(00|15|30|45)$/;
 
+  // まだ一度も登録・削除していないときに並べる時間（お店の基本のシフト）
+  const DEFAULT_PATTERNS = [
+    ['07:00', '16:00'],
+    ['11:00', '22:00'],
+    ['17:00', '21:30'],
+    ['17:00', '22:00']
+  ];
+
+  function defaultPatterns() {
+    return DEFAULT_PATTERNS.map(function (p) {
+      return p.slice();
+    });
+  }
+
   function loadPatterns() {
     try {
-      const list = JSON.parse(global.localStorage.getItem(PATTERN_STORAGE_KEY) || '[]');
+      const saved = global.localStorage.getItem(PATTERN_STORAGE_KEY);
+      if (saved === null) return defaultPatterns();
+      const list = JSON.parse(saved);
       if (!Array.isArray(list)) return [];
       return list.filter(function (p) {
         return Array.isArray(p) && TIME_PATTERN.test(p[0]) && TIME_PATTERN.test(p[1]) && p[0] < p[1];
       }).slice(0, PATTERN_LIMIT);
     } catch (error) {
-      return [];
+      return defaultPatterns();
     }
   }
 
