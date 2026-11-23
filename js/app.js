@@ -26,6 +26,14 @@
   const WHEEL_ITEM = 32; // ダイヤル 1 段の高さ（px）。style.css の .wheel-item と合わせる
   const WHEEL_ANGLE = 20; // 1 段ごとの傾き（度）。円筒に数字が並んでいるように見せる
   const WHEEL_RADIUS = WHEEL_ITEM / (WHEEL_ANGLE * Math.PI / 180); // 円筒の半径（中央付近の間隔が 1 段分になる）
+  // よく使う勤務パターン（開始・終了）。お店の実際の時間に合わせて書き換える
+  const SHIFT_PATTERNS = [
+    ['17:00', '22:00'],
+    ['17:00', '23:00'],
+    ['18:00', '22:00'],
+    ['10:00', '15:00'],
+    ['11:00', '14:00']
+  ];
   const BREAK_OPTIONS = [
     { minutes: 15, label: '15分' },
     { minutes: 30, label: '30分' },
@@ -59,8 +67,6 @@
   let currentView = 'summary';
   let todayText = '';
   let errorCount = 0;
-  let clipboard = null; // 出勤簿の「コピー」で覚えた勤務時間・休憩（メモリだけ）
-  let rowRefreshers = [];
 
   const numberFormat = new Intl.NumberFormat('ja-JP');
   const hoursFormat = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 });
@@ -284,16 +290,91 @@
     return { element: box, sync: sync };
   }
 
-  function createStaffRowElement(index) {
+  // ---- 出勤簿の一覧（1 人 1 行）と入力シート ----
+
+  /** 1 人分の入力状況。done：計算できた、error：時刻の誤り、partial：途中まで、empty：未入力 */
+  function staffStatus(data, item) {
+    if (item.error) return 'error';
+    if (item.workHours !== null) return 'done';
+    return data.start || data.end || data.breakMinutes !== null ? 'partial' : 'empty';
+  }
+
+  function partialMessage(data) {
+    if (!data.start && !data.end) return '時間が未入力';
+    return data.start ? '終了が未入力' : '開始が未入力';
+  }
+
+  function breakText(minutes) {
+    return minutes === null ? '休憩なし' : minutes === 60 ? '休憩1時間' : '休憩' + minutes + '分';
+  }
+
+  /** 一覧の各行と「入力済み ○ / ○ 人」を計算結果に合わせて描き直す。 */
+  function renderStaffList(result) {
+    const list = byId('staff-list');
+    list.textContent = '';
+    let doneCount = 0;
+    state.staff.forEach(function (data, index) {
+      const item = result.staff[index];
+      const status = staffStatus(data, item);
+      if (status === 'done') doneCount += 1;
+
+      const row = element('button', 'staff-item');
+      row.type = 'button';
+      row.id = 'staff-row-' + index;
+      row.dataset.status = status;
+      const type = calc.STAFF_TYPES.find(function (t) {
+        return t.id === data.type;
+      });
+      const time = element('span', 'staff-item-time', status === 'empty' ? '未入力' : (data.start || '--:--') + '〜' + (data.end || '--:--'));
+      if (data.breakMinutes !== null) time.append(element('small', '', breakText(data.breakMinutes)));
+      let side = '—';
+      if (status === 'done') side = hoursFormat.format(item.workHours) + 'h';
+      if (status === 'error') side = STAFF_ERRORS[item.error];
+      if (status === 'partial') side = partialMessage(data);
+      row.append(
+        element('span', 'staff-name', staffName(index)),
+        element('span', 'staff-tag is-' + data.type, type.label),
+        time,
+        element('span', 'staff-item-side', side),
+        element('span', 'staff-item-chevron', '›')
+      );
+      row.setAttribute('aria-label', staffName(index) + ' ' + type.label + ' ' + time.textContent + ' ' + side + '（タップで入力）');
+      row.addEventListener('click', function () {
+        openStaffSheet(index);
+      });
+      list.append(row);
+    });
+    byId('staff-progress-text').textContent = '入力済み ' + doneCount + ' / ' + state.staff.length + ' 人';
+    byId('staff-progress-bar').style.width = (doneCount / state.staff.length) * 100 + '%';
+  }
+
+  let sheetRefresh = null;
+
+  /** 下から出る入力シートを開く（開いていれば中身だけ次の人に入れ替える）。 */
+  function openStaffSheet(index) {
+    const sheet = byId('staff-sheet');
+    buildStaffSheet(index);
+    if (!sheet.open) sheet.showModal();
+    // ダイヤルの位置は表示されてからでないと合わせられない
+    sheetRefresh();
+    byId('staff-sheet-body').scrollTop = 0;
+  }
+
+  function closeStaffSheet() {
+    const sheet = byId('staff-sheet');
+    if (sheet.open) sheet.close();
+  }
+
+  function buildStaffSheet(index) {
     const data = state.staff[index];
     const name = staffName(index);
+    const body = byId('staff-sheet-body');
+    body.textContent = '';
 
-    const row = element('div', 'staff-row');
-    row.setAttribute('role', 'group');
-    row.setAttribute('aria-label', name);
-    row.id = 'staff-row-' + index;
-
-    const top = element('div', 'staff-line');
+    // 見出し：名前・区分・完了
+    const head = element('div', 'sheet-head');
+    const title = element('h2', '', name + ' さん');
+    title.id = 'staff-sheet-title';
     const segmented = element('span', 'segmented');
     segmented.setAttribute('role', 'radiogroup');
     segmented.setAttribute('aria-label', name + ' の区分');
@@ -301,7 +382,7 @@
       const label = doc.createElement('label');
       const radio = doc.createElement('input');
       radio.type = 'radio';
-      radio.name = 'staff-type-' + index;
+      radio.name = 'staff-type';
       radio.value = type.id;
       radio.checked = data.type === type.id;
       radio.addEventListener('change', function () {
@@ -311,12 +392,49 @@
       label.append(radio, element('span', '', type.label));
       segmented.append(label);
     });
-    const hours = element('output', 'staff-hours');
-    hours.id = 'staff-hours-' + index;
-    top.append(element('span', 'staff-name', name), segmented, hours);
-    row.append(top);
+    const done = element('button', 'sheet-done', '完了');
+    done.type = 'button';
+    done.id = 'staff-sheet-done';
+    done.addEventListener('click', closeStaffSheet);
+    head.append(title, segmented, done);
+    body.append(head);
 
-    // 勤務時間：開始・終了を横に並べ、それぞれ時・分のダイヤルで選ぶ
+    // 前の人と同じ（直前の人の開始・終了・休憩をそのまま入れる）
+    let same = null;
+    if (index > 0) {
+      same = element('button', 'action-button same-button');
+      same.type = 'button';
+      same.id = 'staff-same';
+      same.addEventListener('click', function () {
+        const prev = state.staff[index - 1];
+        data.start = prev.start;
+        data.end = prev.end;
+        data.breakMinutes = prev.breakMinutes;
+        refresh();
+        afterChange();
+      });
+      body.append(same);
+    }
+
+    // よく使う勤務パターン（開始・終了をまとめて入れる。休憩はそのまま）
+    body.append(element('div', 'sheet-label', 'よく使う時間'));
+    const patterns = element('div', 'pattern-chips');
+    const patternButtons = SHIFT_PATTERNS.map(function (pattern) {
+      const button = element('button', 'chip-button', pattern[0] + '〜' + pattern[1]);
+      button.type = 'button';
+      button.dataset.pattern = pattern.join('-');
+      button.addEventListener('click', function () {
+        data.start = pattern[0];
+        data.end = pattern[1];
+        refresh();
+        afterChange();
+      });
+      patterns.append(button);
+      return button;
+    });
+    body.append(patterns);
+
+    // 開始・終了のダイヤル
     const times = element('div', 'time-grid');
     const fields = Object.keys(TIME_LABELS).map(function (key) {
       const field = createTimeField(index, key, function () {
@@ -326,9 +444,9 @@
       times.append(field.element);
       return field;
     });
-    row.append(times);
+    body.append(times);
 
-    // 休憩：決まった長さから選ぶ。選択中のボタンをもう一度押すと「休憩なし」に戻る
+    // 休憩：選択中のボタンをもう一度押すと「休憩なし」に戻る
     const breakLine = element('div', 'break-line');
     breakLine.append(element('span', 'time-label', '休憩'));
     const breakButtons = BREAK_OPTIONS.map(function (option) {
@@ -344,38 +462,20 @@
       breakLine.append(button);
       return button;
     });
-    row.append(breakLine);
+    body.append(breakLine);
 
-    // コピー・貼り付け・クリア
-    const actions = element('div', 'staff-actions');
-    const copy = element('button', 'action-button', 'コピー');
-    copy.type = 'button';
-    copy.id = 'staff-copy-' + index;
-    copy.setAttribute('aria-label', name + ' の勤務時間と休憩をコピー');
-    copy.addEventListener('click', function () {
-      clipboard = { from: name, start: data.start, end: data.end, breakMinutes: data.breakMinutes };
-      renderPasteButtons();
-      copy.textContent = 'コピーしました';
-      setTimeout(function () {
-        copy.textContent = 'コピー';
-      }, 1200);
-    });
+    // 実労働時間（renderComputed が書き込む）
+    const result = element('div', 'sheet-result');
+    const hours = element('output', 'staff-hours');
+    hours.id = 'staff-hours-' + index;
+    result.append(element('span', 'time-label', '実労働'), hours);
+    body.append(result);
 
-    const paste = element('button', 'action-button paste-button');
-    paste.type = 'button';
-    paste.id = 'staff-paste-' + index;
-    paste.addEventListener('click', function () {
-      if (!clipboard) return;
-      data.start = clipboard.start;
-      data.end = clipboard.end;
-      data.breakMinutes = clipboard.breakMinutes;
-      refresh();
-      afterChange();
-    });
-
+    // クリア・次の人へ
+    const actions = element('div', 'sheet-actions');
     const clear = element('button', 'clear-button', 'クリア');
     clear.type = 'button';
-    clear.id = 'staff-clear-' + index;
+    clear.id = 'staff-clear';
     clear.setAttribute('aria-label', name + ' の勤務時間と休憩をクリア');
     clear.addEventListener('click', function () {
       data.start = '';
@@ -384,8 +484,16 @@
       refresh();
       afterChange();
     });
-    actions.append(copy, paste, clear);
-    row.append(actions);
+    const isLast = index >= state.staff.length - 1;
+    const next = element('button', 'button button-primary', isLast ? '完了' : '次の人へ（' + staffName(index + 1) + '）›');
+    next.type = 'button';
+    next.id = 'staff-next';
+    next.addEventListener('click', function () {
+      if (isLast) closeStaffSheet();
+      else openStaffSheet(index + 1);
+    });
+    actions.append(clear, next);
+    body.append(actions);
 
     function refresh() {
       fields.forEach(function (field) {
@@ -394,26 +502,20 @@
       breakButtons.forEach(function (button) {
         button.setAttribute('aria-pressed', String(Number(button.dataset.break) === data.breakMinutes));
       });
-      copy.disabled = !data.start && !data.end && data.breakMinutes === null;
+      patternButtons.forEach(function (button) {
+        button.setAttribute('aria-pressed', String(button.dataset.pattern === data.start + '-' + data.end));
+      });
+      if (same) {
+        const prev = state.staff[index - 1];
+        const hasPrev = Boolean(prev.start || prev.end || prev.breakMinutes !== null);
+        same.disabled = !hasPrev;
+        same.textContent = hasPrev
+          ? staffName(index - 1) + ' さんと同じ（' + (prev.start || '--:--') + '〜' + (prev.end || '--:--') + '・' + breakText(prev.breakMinutes) + '）'
+          : staffName(index - 1) + ' さんと同じ（' + staffName(index - 1) + ' さんが未入力）';
+      }
     }
-    rowRefreshers.push(refresh);
-    return row;
-  }
-
-  /** 貼り付けボタンの表示を、いまコピーしている内容に合わせる。 */
-  function renderPasteButtons() {
-    doc.querySelectorAll('.paste-button').forEach(function (button) {
-      button.disabled = !clipboard;
-      button.textContent = clipboard ? clipboard.from + ' を貼り付け' : '貼り付け';
-      button.setAttribute('aria-label', clipboard ? clipboard.from + ' の勤務時間と休憩を貼り付け' : '貼り付け（先にコピーしてください）');
-    });
-  }
-
-  /** ダイヤルの位置などを入力内容に合わせ直す（行を作り直したときや、画面を表示したとき）。 */
-  function refreshStaffRows() {
-    rowRefreshers.forEach(function (refresh) {
-      refresh();
-    });
+    sheetRefresh = refresh;
+    renderComputed();
   }
 
   function pad2(value) {
@@ -441,14 +543,6 @@
   }
 
   function renderStaffRows() {
-    const list = byId('staff-list');
-    list.textContent = '';
-    rowRefreshers = [];
-    state.staff.forEach(function (unused, index) {
-      list.append(createStaffRowElement(index));
-    });
-    refreshStaffRows();
-    renderPasteButtons();
     byId('add-staff-button').disabled = state.staff.length >= MAX_STAFF_COUNT;
     byId('remove-staff-button').hidden = state.staff.length <= DEFAULT_STAFF_COUNT;
     renderComputed();
@@ -548,6 +642,7 @@
         node.className = 'staff-hours has-value';
       }
     });
+    renderStaffList(result);
 
     setOutput('laborEmployee', result.labor.employee, '時間', hoursFormat);
     setOutput('laborPartTime', result.labor.partTime, '時間', hoursFormat);
@@ -566,7 +661,7 @@
 
   function resetInputs() {
     state = createInitialState();
-    clipboard = null;
+    closeStaffSheet();
     doc.querySelectorAll('#sales-groups input, #input-plannedHours').forEach(function (input) {
       input.value = '';
     });
@@ -612,7 +707,6 @@
     byId('screen-title').textContent = VIEW_TITLES[name];
     global.scrollTo(0, 0);
     if (name === 'report') renderPreview();
-    if (name === 'summary') refreshStaffRows();
   }
 
   // ---- 日報プレビューと PNG 出力 ----
@@ -775,6 +869,17 @@
     // 入力欄の外をタップしたら入力を終える（キーボードを閉じる）
     doc.addEventListener('pointerdown', function (event) {
       if (isTyping(doc.activeElement) && !event.target.closest('input, label')) doc.activeElement.blur();
+    });
+
+    // 入力シート：背景をタップしても閉じる
+    const sheet = byId('staff-sheet');
+    sheet.addEventListener('click', function (event) {
+      if (event.target === sheet) closeStaffSheet();
+    });
+    // 閉じたら中身を捨てる（次に開くときに作り直す）
+    // （close の通知は少し遅れて届くので、その間に開き直していたら消さない）
+    sheet.addEventListener('close', function () {
+      if (!sheet.open) byId('staff-sheet-body').textContent = '';
     });
 
     byId('add-staff-button').addEventListener('click', addStaffRow);

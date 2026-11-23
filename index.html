@@ -37,7 +37,12 @@
           <h2 id="staff-title">出勤簿</h2>
           <span class="badge">実労働 ＝ 勤務時間 − 休憩</span>
         </div>
-        <div id="staff-list" class="rows"></div>
+        <div class="staff-progress">
+          <span id="staff-progress-text">入力済み 0 / 5 人</span>
+          <span class="progress-track" aria-hidden="true"><i id="staff-progress-bar"></i></span>
+        </div>
+        <div id="staff-list" class="staff-list"></div>
+        <p class="note">行をタップすると、勤務時間を入力する画面が開きます。</p>
         <div class="card-actions">
           <button id="add-staff-button" type="button" class="button button-small">＋ 項目を追加</button>
           <button id="remove-staff-button" type="button" class="button button-small" hidden>最後の項目を削除</button>
@@ -116,9 +121,11 @@
         <ul class="usage">
           <li>「集計」で出勤簿と売上を入力すると、「自動」の項目がすぐに計算されます。</li>
           <li>出勤簿は A〜E の 5 人分が標準です。人数が多い日は「項目を追加」で増やせます（日報の行数に合わせて最大 10 人）。</li>
+          <li>出勤簿は 1 人 1 行で表示されます。行をタップすると下から入力画面が開き、「次の人へ」で続けて入力できます。</li>
+          <li>「よく使う時間」を押すと開始・終了がまとめて入ります。「○ さんと同じ」で前の人の勤務時間と休憩をそのまま入れられます。</li>
           <li>勤務時間は「時」と「分」のダイヤルを指で回して選びます（数字をタップしても選べます）。時は 7〜23、分は 00・15・30・45 です。</li>
           <li>未入力の欄は 17:00（終了は開始の時刻）が薄く表示され、触れると確定します。</li>
-          <li>「コピー」でその人の勤務時間と休憩を覚え、別の人の「貼り付け」で同じ内容を入れられます。</li>
+          <li>一覧の上に入力済みの人数が出ます。途中までの行や時刻が誤っている行には色が付きます。</li>
           <li>休憩は 15分・30分・45分・1時間から選びます。もう一度押すと休憩なしに戻ります。</li>
           <li>区分の初期値は A・B が社員、C 以降がアルバイトです。行ごとに切り替えられます。</li>
           <li>客単価と人時生産高は円未満を切り捨てます。</li>
@@ -147,6 +154,12 @@
       <span>情報</span>
     </button>
   </nav>
+
+  <!-- 出勤簿の入力シート（中身は app.js が作る） -->
+  <dialog id="staff-sheet" class="staff-sheet" aria-labelledby="staff-sheet-title">
+    <div class="sheet-grab" aria-hidden="true"></div>
+    <div id="staff-sheet-body" class="sheet-body"></div>
+  </dialog>
 
   <dialog id="reset-dialog" aria-labelledby="reset-dialog-title">
     <form method="dialog">
